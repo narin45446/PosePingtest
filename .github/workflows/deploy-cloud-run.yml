@@ -23,11 +23,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Debug GitHub context
+      - name: Assert secrets are expected
         run: |
-          echo "repository=${{ github.repository }}"
-          echo "ref=${{ github.ref }}"
-          echo "event=${{ github.event_name }}"
+          test "${{ secrets.GCP_SERVICE_ACCOUNT }}" = "github-deployer@project-7b973537-5593-4b78-811.iam.gserviceaccount.com"
+          test "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}" = "projects/52509093223/locations/global/workloadIdentityPools/poseping-pull/providers/github-actions"
 
       - id: auth
         uses: google-github-actions/auth@v3
