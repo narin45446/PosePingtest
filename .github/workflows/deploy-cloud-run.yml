@@ -35,6 +35,12 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
+      - name: Debug auth target
+        run: |
+          echo "impersonated_sa=$(gcloud config get-value auth/impersonate_service_account)"
+          echo "repo=${{ github.repository }}"
+          echo "ref=${{ github.ref }}"
+
       - uses: google-github-actions/setup-gcloud@v3
 
       - name: Configure Docker auth
