@@ -8,7 +8,7 @@ app = FastAPI()
 
 @app.get("/")
 async def root():
-    return {"message": "workflow test!"}
+    return {"message": "google cloud run github actions 자동배포 테스트"}
 
 
 @app.get("/health/db")

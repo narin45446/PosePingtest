@@ -23,11 +23,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Assert secrets are expected
-        run: |
-          test "${{ secrets.GCP_SERVICE_ACCOUNT }}" = "github-deployer@project-7b973537-5593-4b78-811.iam.gserviceaccount.com"
-          test "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}" = "projects/52509093223/locations/global/workloadIdentityPools/poseping-pull/providers/github-actions"
-
       - id: auth
         uses: google-github-actions/auth@v3
         with:
@@ -42,12 +37,6 @@ jobs:
           registry: asia-northeast1-docker.pkg.dev
           username: oauth2accesstoken
           password: ${{ steps.auth.outputs.access_token }}
-
-
-      - name: Check auth env
-        run: |
-          echo "GOOGLE_APPLICATION_CREDENTIALS=$GOOGLE_APPLICATION_CREDENTIALS"
-          echo "GOOGLE_GHA_CREDS_PATH=$GOOGLE_GHA_CREDS_PATH"
 
       - name: Build image
         run: docker build -t "$IMAGE" .
