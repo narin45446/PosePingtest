@@ -25,4 +25,4 @@ async def health_members():
         result = connection.execute(text("SELECT COUNT(*) FROM members"))
         count = result.scalar()
 
-    return {"members_count": count}
+    return {"회원 수": count}
