@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import FastAPI, HTTPException
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -5,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.db.session import get_engine
 from app.api import pose
+
+logger = logging.getLogger("uvicorn.error")
 
 app = FastAPI(
     title="척추Ping API",
@@ -22,6 +26,14 @@ app.add_middleware(
 
 # 라우터 등록
 app.include_router(pose.router, prefix="/api/pose", tags=["pose"])
+
+
+@app.on_event("startup")
+async def startup():
+    from app.services.mediapipe_detector import MediaPipePoseDetector
+
+    model_asset_path = MediaPipePoseDetector.ensure_model_asset()
+    logger.info("pose_landmarker_lite.task ready: %s", model_asset_path)
 
 @app.get("/")
 async def root():

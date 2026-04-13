@@ -6,11 +6,14 @@ MediaPipe Pose Detection Service (새로운 Task API)
 
 import cv2
 import numpy as np
+import os
 from typing import Optional, Dict, List
 from dataclasses import dataclass
 from datetime import datetime
 import json
 from pathlib import Path
+from tempfile import gettempdir
+from urllib.request import urlopen
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 import mediapipe as mp
@@ -46,6 +49,12 @@ class MediaPipePoseDetector:
     17개의 신체 포인트(nose, shoulders, elbows, wrists)를 감지합니다.
     """
 
+    MODEL_ASSET_URL = (
+        "https://storage.googleapis.com/mediapipe-models/"
+        "pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task"
+    )
+    MODEL_CACHE_DIR = Path(gettempdir()) / "poseping-models"
+
     LANDMARK_NAMES = [
         "nose",
         "left_eye_inner", "left_eye", "left_eye_outer",
@@ -72,18 +81,7 @@ class MediaPipePoseDetector:
         PoseLandmarker = vision.PoseLandmarker
         PoseLandmarkerOptions = vision.PoseLandmarkerOptions
         VisionRunningMode = vision.RunningMode
-        model_asset_candidates = [
-            Path(__file__).resolve().with_name("pose_landmarker_lite.task"),
-            Path(__file__).resolve().parents[2] / "pose_landmarker_lite.task",
-            Path.cwd() / "pose_landmarker_lite.task",
-        ]
-        model_asset_path = next((path for path in model_asset_candidates if path.exists()), None)
-
-        if model_asset_path is None:
-            raise FileNotFoundError(
-                "pose_landmarker_lite.task 파일을 찾을 수 없습니다: "
-                + ", ".join(str(path) for path in model_asset_candidates)
-            )
+        model_asset_path = self._resolve_model_asset_path()
 
         # ⭐ 모델 파일 경로 지정
         options = PoseLandmarkerOptions(
@@ -96,6 +94,48 @@ class MediaPipePoseDetector:
 
         self.detector = PoseLandmarker.create_from_options(options)
         self.timestamp_ms = 0
+
+    @classmethod
+    def ensure_model_asset(cls) -> Path:
+        return cls._resolve_model_asset_path()
+
+    @classmethod
+    def _resolve_model_asset_path(cls) -> Path:
+        env_model_asset_path = os.getenv("POSE_LANDMARKER_PATH")
+
+        if env_model_asset_path:
+            model_asset_path = Path(env_model_asset_path).expanduser().resolve()
+            if not model_asset_path.exists():
+                raise FileNotFoundError(
+                    f"POSE_LANDMARKER_PATH 파일을 찾을 수 없습니다: {model_asset_path}"
+                )
+            return model_asset_path
+
+        model_asset_candidates = [
+            Path(__file__).resolve().parents[1] / "pose_landmarker_lite.task",
+            Path(__file__).resolve().with_name("pose_landmarker_lite.task"),
+            Path(__file__).resolve().parents[2] / "pose_landmarker_lite.task",
+            Path.cwd() / "pose_landmarker_lite.task",
+            cls.MODEL_CACHE_DIR / "pose_landmarker_lite.task",
+        ]
+        existing_model_path = next((path for path in model_asset_candidates if path.exists()), None)
+
+        if existing_model_path is not None:
+            return existing_model_path
+
+        cls.MODEL_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        download_path = cls.MODEL_CACHE_DIR / "pose_landmarker_lite.task"
+        temp_download_path = cls.MODEL_CACHE_DIR / "pose_landmarker_lite.task.tmp"
+
+        try:
+            with urlopen(cls.MODEL_ASSET_URL, timeout=60) as response, temp_download_path.open("wb") as file_obj:
+                file_obj.write(response.read())
+            temp_download_path.replace(download_path)
+        except Exception as e:
+            temp_download_path.unlink(missing_ok=True)
+            raise RuntimeError(f"pose_landmarker_lite.task 다운로드에 실패했습니다: {e}")
+
+        return download_path
 
     def detect_pose(self, frame: np.ndarray) -> PoseDetectionResult:
         """
