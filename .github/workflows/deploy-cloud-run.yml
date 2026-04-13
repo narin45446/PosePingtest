@@ -50,6 +50,7 @@ jobs:
           service: ${{ env.SERVICE }}
           region: ${{ env.REGION }}
           image: ${{ env.IMAGE }}
+          flags: --port=8000
 
       - name: Service URL
         run: echo "${{ steps.deploy.outputs.url }}"
