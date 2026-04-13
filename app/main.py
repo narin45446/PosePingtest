@@ -1,8 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.db.session import engine
+from app.db.session import get_engine
 from app.api import pose
 
 app = FastAPI(
@@ -43,16 +44,26 @@ if __name__ == "__main__":
 
 @app.get("/health/db")
 async def health_db():
-    with engine.connect() as connection:
-        result = connection.execute(text("SELECT 1"))
-        value = result.scalar()
+    try:
+        with get_engine().connect() as connection:
+            result = connection.execute(text("SELECT 1"))
+            value = result.scalar()
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except SQLAlchemyError as e:
+        raise HTTPException(status_code=503, detail=str(e))
 
     return {"database": "connected", "result": value}
 
 @app.get("/health/members")
 async def health_members():
-    with engine.connect() as connection:
-        result = connection.execute(text("SELECT COUNT(*) FROM members"))
-        count = result.scalar()
+    try:
+        with get_engine().connect() as connection:
+            result = connection.execute(text("SELECT COUNT(*) FROM members"))
+            count = result.scalar()
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except SQLAlchemyError as e:
+        raise HTTPException(status_code=503, detail=str(e))
 
     return {"회원 수": count}

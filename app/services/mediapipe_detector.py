@@ -10,6 +10,7 @@ from typing import Optional, Dict, List
 from dataclasses import dataclass
 from datetime import datetime
 import json
+from pathlib import Path
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 import mediapipe as mp
@@ -71,10 +72,22 @@ class MediaPipePoseDetector:
         PoseLandmarker = vision.PoseLandmarker
         PoseLandmarkerOptions = vision.PoseLandmarkerOptions
         VisionRunningMode = vision.RunningMode
+        model_asset_candidates = [
+            Path(__file__).resolve().with_name("pose_landmarker_lite.task"),
+            Path(__file__).resolve().parents[2] / "pose_landmarker_lite.task",
+            Path.cwd() / "pose_landmarker_lite.task",
+        ]
+        model_asset_path = next((path for path in model_asset_candidates if path.exists()), None)
+
+        if model_asset_path is None:
+            raise FileNotFoundError(
+                "pose_landmarker_lite.task 파일을 찾을 수 없습니다: "
+                + ", ".join(str(path) for path in model_asset_candidates)
+            )
 
         # ⭐ 모델 파일 경로 지정
         options = PoseLandmarkerOptions(
-            base_options=BaseOptions(model_asset_path='pose_landmarker_lite.task'),
+            base_options=BaseOptions(model_asset_path=str(model_asset_path)),
             running_mode=VisionRunningMode.VIDEO,
             min_pose_detection_confidence=min_pose_detection_confidence,
             min_pose_presence_confidence=min_pose_presence_confidence,

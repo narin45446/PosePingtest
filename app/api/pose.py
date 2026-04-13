@@ -6,14 +6,9 @@
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import List, Optional
-import cv2
+from typing import Any, List, Optional
 import base64
 import numpy as np
-from io import BytesIO
-
-from app.services.mediapipe_detector import MediaPipePoseDetector, PoseDetectionResult
-from app.services.pose_analyzer import PoseAnalyzer, PostureAnalysisResult
 
 
 router = APIRouter()
@@ -51,14 +46,23 @@ class PoseDetectionRequest(BaseModel):
 # 전역 변수 (간단한 구현용)
 detector = None
 analyzer = None
+cv2: Any = None
 
 
 def init_services():
     """서비스 초기화"""
-    global detector, analyzer
+    global detector, analyzer, cv2
+    if cv2 is None:
+        import cv2 as cv2_module
+
+        cv2 = cv2_module
     if detector is None:
+        from app.services.mediapipe_detector import MediaPipePoseDetector
+
         detector = MediaPipePoseDetector()
     if analyzer is None:
+        from app.services.pose_analyzer import PoseAnalyzer
+
         analyzer = PoseAnalyzer()
 
 
@@ -73,9 +77,9 @@ async def analyze_posture(request: PoseDetectionRequest):
     Returns:
         PostureAnalysisResponse: 자세 분석 결과
     """
-    init_services()
-
     try:
+        init_services()
+
         if not request.image_base64:
             raise HTTPException(status_code=400, detail="image_base64가 필요합니다")
 
@@ -133,6 +137,8 @@ async def analyze_posture(request: PoseDetectionRequest):
             recommendations=analysis.recommendations
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -148,9 +154,9 @@ async def get_landmarks(image_base64: Optional[str] = None):
     Returns:
         dict: 랜드마크 데이터
     """
-    init_services()
-
     try:
+        init_services()
+
         if not image_base64:
             raise HTTPException(status_code=400, detail="image_base64가 필요합니다")
 
@@ -167,6 +173,8 @@ async def get_landmarks(image_base64: Optional[str] = None):
 
         return detector.to_dict(pose_result)
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
